@@ -14,6 +14,9 @@
  * along with Digest Header  If not, see <http://www.gnu.org/licenses/>.
  */
 
+//! The `use_hyper` module provides useful Types and Traits for interacting with `Hyper` with
+//! `Digest`s.
+
 use futures::{Future, Stream};
 use hyper::{Body, Chunk, Request};
 use hyper::header::{Formatter, Header, Raw};
@@ -59,6 +62,77 @@ impl From<HyperError> for Error {
     }
 }
 
+/// The `DigestHeader` is used to create and verify Digests on Hyper requests.
+///
+/// # Example of Creation
+///
+/// ```rust
+/// # extern crate digest_headers;
+/// # extern crate hyper;
+/// #
+/// # use digest_headers::{Digest, ShaSize};
+/// # use digest_headers::prelude::*;
+/// # use digest_headers::use_hyper::{Error, DigestHeader};
+/// # use hyper::{Method, Request};
+/// #
+/// # fn main() {
+/// #     run().unwrap();
+/// # }
+/// #
+/// # fn run() -> Result<(), Error> {
+/// let uri = "http://example.com".parse().unwrap();
+/// let json = r#"{"Library":"Hyper"}"#;
+///
+/// let mut req: Request = Request::new(Method::Post, uri);
+/// req.headers_mut().set(DigestHeader(Digest::new(json.as_bytes(), ShaSize::TwoFiftySix)));
+/// req.set_body(json);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// # Example of Verification
+/// ```rust
+/// # extern crate digest_headers;
+/// # extern crate futures;
+/// # extern crate hyper;
+/// #
+/// # use digest_headers::{Digest, ShaSize};
+/// # use digest_headers::prelude::*;
+/// # use digest_headers::use_hyper::{Error, DigestHeader};
+/// # use futures::{Future, Stream};
+/// # use hyper::{Method, Request};
+/// #
+/// fn handle_request(mut req: Request) {
+///     let digest_header = req
+///         .headers_mut()
+///         .remove::<DigestHeader>()
+///         .unwrap();
+///
+///     let digest_header = digest_header.0;
+///
+///     // Don't actually use `.wait()` in real code.
+///     req.body()
+///         .concat2()
+///         .and_then(|body| {
+///             let digest = Digest::new(&body, digest_header.sha_size());
+///
+///             assert_eq!(digest_header, digest);
+///             Ok(())
+///         })
+///         .wait()
+///         .unwrap();
+/// }
+/// #
+/// # fn main() {
+/// #     let uri = "http://example.com".parse().unwrap();
+/// #     let json = r#"{"Library":"Hyper"}"#;
+/// #
+/// #     let mut req: Request = Request::new(Method::Post, uri);
+/// #     req.headers_mut().set(DigestHeader(Digest::new(json.as_bytes(), ShaSize::TwoFiftySix)));
+/// #     req.set_body(json);
+/// #     handle_request(req);
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct DigestHeader(pub Digest);
 

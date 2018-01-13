@@ -35,9 +35,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let s = match *self {
-            Error::ParseShaSize => "Failed to parse ShaSize",
-            Error::ParseDigest => "Failed to parse Digest",
-            Error::InvalidDigest => "Digest does not match Body",
+            _ => self.description(),
         };
 
         write!(f, "{}", s)

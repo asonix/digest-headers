@@ -28,8 +28,6 @@ extern crate base64;
 extern crate futures;
 #[cfg(feature = "use_hyper")]
 extern crate hyper;
-#[cfg(feature = "use_reqwest")]
-extern crate reqwest;
 extern crate ring;
 #[cfg(feature = "use_rocket")]
 extern crate rocket;
@@ -38,9 +36,10 @@ extern crate tokio_core;
 
 mod error;
 pub mod prelude;
-
 #[cfg(feature = "use_hyper")]
 pub mod use_hyper;
+#[cfg(feature = "use_rocket")]
+pub mod use_rocket;
 
 pub use self::error::Error;
 
@@ -88,7 +87,7 @@ impl FromStr for ShaSize {
 
 /// Defines a wrapper around an &[u8] that can be turned into a `Digest`.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct RequestBody<'a>(&'a [u8]);
+struct RequestBody<'a>(&'a [u8]);
 
 impl<'a> RequestBody<'a> {
     /// Creates a new `RequestBody` struct from a `&[u8]` representing a plaintext body.
@@ -124,11 +123,33 @@ pub struct Digest {
 impl Digest {
     /// Creates a new `Digest` from a series of bytes representing a plaintext body and a
     /// `ShaSize`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use digest_headers::{Digest, ShaSize};
+    /// let body = "Here's some text!";
+    /// let digest = Digest::new(body.as_bytes(), ShaSize::TwoFiftySix);
+    ///
+    /// println!("Digest: {}", digest);
+    /// ```
     pub fn new(body: &[u8], size: ShaSize) -> Self {
         RequestBody::new(body).digest(size)
     }
 
     /// Creates a new `Digest` from a base64-encoded digest `String` and a `ShaSize`.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use digest_headers::{Digest, ShaSize};
+    /// let sha_size = ShaSize::TwoFiftySix;
+    /// let digest_str = "bFp1K/TT36l9YQ8frlh/cVGuWuFEy1rCUNpGwQCSEow=";
+    ///
+    /// let digest = Digest::from_base64_and_size(digest_str.to_owned(), sha_size);
+    ///
+    /// println!("Digest: {}", digest);
+    /// ```
     pub fn from_base64_and_size(digest: String, size: ShaSize) -> Self {
         Digest { digest, size }
     }
@@ -141,6 +162,15 @@ impl Digest {
     /// Represents the `Digest` as a `String`.
     ///
     /// This can be used to produce headers for HTTP Requests.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use digest_headers::{Digest, ShaSize};
+    /// let digest = Digest::new(b"Hello, world!", ShaSize::TwoFiftySix);
+    ///
+    /// println!("Digest: {}", digest.as_string());
+    /// ```
     pub fn as_string(&self) -> String {
         format!("{}={}", self.size, self.digest)
     }

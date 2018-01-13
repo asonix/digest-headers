@@ -20,69 +20,55 @@
 extern crate digest_headers;
 extern crate rocket;
 
+use std::error::Error as StdError;
+use std::fmt;
 use std::io::Read;
 
 use digest_headers::Digest;
+use digest_headers::use_rocket::{Error as DigestError, ContentLengthHeader, DigestHeader};
 use rocket::data::{self, Data, FromData};
-use rocket::request::{self, FromRequest, Request};
+use rocket::request::Request;
 use rocket::Outcome;
 use rocket::http::Status;
 
-/// Verify the presence and format of a Digest header.
-struct DigestHeader(Digest);
+#[derive(Clone, Debug)]
+enum Error {
+    Digest(DigestError),
+    RequestTooBig,
+    ReadFailed,
+    DigestMismatch,
+}
 
-impl DigestHeader {
-    pub fn new(digest: Digest) -> Self {
-        DigestHeader(digest)
-    }
-
-    pub fn into_inner(self) -> Digest {
-        self.0
+impl From<DigestError> for Error {
+    fn from(e: DigestError) -> Self {
+        Error::Digest(e)
     }
 }
 
-impl<'a, 'r> FromRequest<'a, 'r> for DigestHeader {
-    type Error = ();
-
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<DigestHeader, ()> {
-        let res = request.headers().get_one("Digest");
-
-        if let Some(res) = res {
-            if let Ok(digest) = res.parse::<Digest>() {
-                return Outcome::Success(DigestHeader::new(digest));
-            }
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Error::Digest(ref de) => write!(f, "DigestError {}", de),
+            _ => write!(f, "{}", self.description()),
         }
-
-        Outcome::Failure((Status::BadRequest, ()))
     }
 }
 
-/// Verify the presence of a Content-Length header.
-struct ContentLengthHeader(usize);
-
-impl ContentLengthHeader {
-    pub fn new(content_length: usize) -> Self {
-        ContentLengthHeader(content_length)
-    }
-
-    pub fn content_length(&self) -> usize {
-        self.0
-    }
-}
-
-impl<'a, 'r> FromRequest<'a, 'r> for ContentLengthHeader {
-    type Error = ();
-
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<ContentLengthHeader, ()> {
-        let res = request.headers().get_one("Content-Length");
-
-        if let Some(res) = res {
-            if let Ok(content_length) = res.parse::<usize>() {
-                return Outcome::Success(ContentLengthHeader::new(content_length));
-            }
+impl StdError for Error {
+    fn description(&self) -> &str {
+        match *self {
+            Error::Digest(ref e) => e.description(),
+            Error::RequestTooBig => "Request too big to process",
+            Error::ReadFailed => "Unable to read request body",
+            Error::DigestMismatch => "The provided digest does not match the body",
         }
+    }
 
-        Outcome::Failure((Status::BadRequest, ()))
+    fn cause(&self) -> Option<&StdError> {
+        match *self {
+            Error::Digest(ref e) => Some(e),
+            _ => None,
+        }
     }
 }
 
@@ -101,33 +87,27 @@ impl<'a, 'r> FromRequest<'a, 'r> for ContentLengthHeader {
 /// ```rust
 /// #[post("/", data = "<data>")]
 /// fn index(data: DigestVerified<Post>) -> YourResponse {
-///     let post = data.into_inner();
+///     let post = data.0;
 ///     ...
 /// }
 /// ```
-struct DigestVerifiedBody(Vec<u8>);
+struct DigestVerifiedBody<T>(pub T);
 
-impl DigestVerifiedBody {
-    pub fn into_inner(self) -> Vec<u8> {
-        self.0
-    }
-}
+impl FromData for DigestVerifiedBody<Vec<u8>> {
+    type Error = Error;
 
-impl FromData for DigestVerifiedBody {
-    type Error = ();
-
-    fn from_data(req: &Request, data: Data) -> data::Outcome<Self, ()> {
+    fn from_data(req: &Request, data: Data) -> data::Outcome<Self, Self::Error> {
         let digest = match req.guard::<DigestHeader>() {
-            Outcome::Success(dh) => dh.into_inner(),
-            Outcome::Failure(fail) => return Outcome::Failure(fail),
+            Outcome::Success(dh) => dh.0,
+            Outcome::Failure((status, error)) => return Outcome::Failure((status, error.into())),
             Outcome::Forward(_) => return Outcome::Forward(data),
         };
 
         println!("Provided Digest: {:?}", digest);
 
         let content_length = match req.guard::<ContentLengthHeader>() {
-            Outcome::Success(clh) => clh.content_length(),
-            Outcome::Failure(fail) => return Outcome::Failure(fail),
+            Outcome::Success(clh) => clh.0,
+            Outcome::Failure((status, error)) => return Outcome::Failure((status, error.into())),
             Outcome::Forward(_) => return Outcome::Forward(data),
         };
 
@@ -135,20 +115,20 @@ impl FromData for DigestVerifiedBody {
 
         // Ensure request is less than 2 MB. This is still likely way too large
         if content_length > 1024 * 1024 * 2 {
-            return Outcome::Failure((Status::BadRequest, ()));
+            return Outcome::Failure((Status::BadRequest, Error::RequestTooBig));
         }
 
         let mut body = vec![0u8; content_length];
 
         // Only read as much data as we expect to avoid DOS
         if let Err(_) = data.open().read_exact(&mut body) {
-            return Outcome::Failure((Status::InternalServerError, ()));
+            return Outcome::Failure((Status::InternalServerError, Error::ReadFailed));
         }
 
         let body_digest = Digest::new(&body, digest.sha_size());
 
         if digest != body_digest {
-            return Outcome::Failure((Status::BadRequest, ()));
+            return Outcome::Failure((Status::BadRequest, Error::DigestMismatch));
         }
 
         Outcome::Success(DigestVerifiedBody(body))
@@ -156,8 +136,8 @@ impl FromData for DigestVerifiedBody {
 }
 
 #[post("/", data = "<data>")]
-fn index(data: DigestVerifiedBody) -> String {
-    if let Ok(data) = std::str::from_utf8(&data.into_inner()) {
+fn index(data: DigestVerifiedBody<Vec<u8>>) -> String {
+    if let Ok(data) = std::str::from_utf8(&data.0) {
         println!("Received {}", data);
         format!("Verified!: {}", data)
     } else {

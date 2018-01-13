@@ -7,12 +7,7 @@ Bodies_
  - Creation of Digest Header strings
  - Verification of Digest Header strings
  - Adding Digest Headers to Hyper Requests (with the `use_hyper` feature).
-
-### Not Supported
- - Generic Verification Traits for servers (This may or may not end up being supported. It's simple
-   enough to implement verification without the aid of fancy traits, and the implementation details
-   for each server kind are too different to fit nicely into a trait).
- - Adding Digest Headers to Reqwest Requests (with the `use_reqwest` feature).
+ - Digest and Content Length Header request guards for Rocket (with the `use_rocket` feature).
 
 ## Examples
 ### Status
@@ -24,7 +19,6 @@ Bodies_
 ### Notes
  - The Hyper Client example is configured to send POST request to the Rocket Server example.
  - When running the examples, remember to pass the `--all-features` flag to `cargo run`
-
 
 ## Contributing
 Please be aware that all code contributed to this project will be licensed under the GPL version 3.
