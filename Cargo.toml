@@ -1,5 +1,5 @@
 [package]
-name = "digest-header"
+name = "digest-headers"
 description = "A simple library to hash a request's body in the headers"
 version = "0.1.0"
 license = "GPL-3.0"

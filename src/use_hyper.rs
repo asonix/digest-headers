@@ -23,8 +23,8 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::str::from_utf8;
 
-use ::{Digest, ShaSize};
-use ::prelude::*;
+use {Digest, ShaSize};
+use prelude::*;
 
 /// The Error type for using Digests with Hyper.
 #[derive(Debug)]
@@ -39,7 +39,7 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::Hyper(ref hyper_error) => write!(f, "Hyper: {}", hyper_error),
-            Error::NoBody => write!(f, "No body was found in the Request.")
+            Error::NoBody => write!(f, "No body was found in the Request."),
         }
     }
 }
@@ -60,13 +60,9 @@ impl From<HyperError> for Error {
 }
 
 #[derive(Clone)]
-pub struct DigestHeader(Digest);
+pub struct DigestHeader(pub Digest);
 
 impl DigestHeader {
-    pub fn new(digest: Digest) -> Self {
-        DigestHeader(digest)
-    }
-
     pub fn into_digest(self) -> Digest {
         self.0
     }
@@ -160,7 +156,7 @@ mod tests {
     use tokio_core::reactor::Core;
 
     use super::DigestHeader;
-    use ::{Digest, ShaSize};
+    use {Digest, ShaSize};
     use prelude::*;
 
     #[test]

@@ -24,17 +24,17 @@
 //! the request.
 
 extern crate base64;
-extern crate ring;
-#[cfg(feature = "use_hyper")]
-extern crate hyper;
 #[cfg(feature = "use_hyper")]
 extern crate futures;
 #[cfg(feature = "use_hyper")]
-extern crate tokio_core;
+extern crate hyper;
 #[cfg(feature = "use_reqwest")]
 extern crate reqwest;
+extern crate ring;
 #[cfg(feature = "use_rocket")]
 extern crate rocket;
+#[cfg(feature = "use_hyper")]
+extern crate tokio_core;
 
 mod error;
 pub mod prelude;
@@ -130,10 +130,7 @@ impl Digest {
 
     /// Creates a new `Digest` from a base64-encoded digest `String` and a `ShaSize`.
     pub fn from_base64_and_size(digest: String, size: ShaSize) -> Self {
-        Digest {
-            digest,
-            size,
-        }
+        Digest { digest, size }
     }
 
     /// Get the `ShaSize` of the current `Digest`
@@ -185,19 +182,24 @@ pub fn verify_digest(digest: &str, body: &[u8]) -> Result<(), Error> {
 mod tests {
     use super::{Digest, RequestBody, ShaSize};
 
+    const D256: &'static str = "bFp1K/TT36l9YQ8frlh/cVGuWuFEy1rCUNpGwQCSEow=";
+    const D384: &'static str = "wOx5d657W3O8k2P7SW18Y/Kj/Rqm02pzgFVBInHOj7hbc0IrYGVXwzid3vTH82um";
+    const D512: &'static str =
+        "t13li71PxOlxHbZRB3ICZxjwBkYxhellKbMEQjT2udmQRP1fzIrmT49EGy9zNdTS5/JKjxqidsIQBO3i+9DBDQ==";
+
     #[test]
     fn digest_256() {
-        digest("bFp1K/TT36l9YQ8frlh/cVGuWuFEy1rCUNpGwQCSEow=".to_owned(), ShaSize::TwoFiftySix);
+        digest(D256.to_owned(), ShaSize::TwoFiftySix);
     }
 
     #[test]
     fn digest_384() {
-        digest("wOx5d657W3O8k2P7SW18Y/Kj/Rqm02pzgFVBInHOj7hbc0IrYGVXwzid3vTH82um".to_owned(), ShaSize::ThreeEightyFour);
+        digest(D384.to_owned(), ShaSize::ThreeEightyFour);
     }
 
     #[test]
     fn digest_512() {
-        digest("t13li71PxOlxHbZRB3ICZxjwBkYxhellKbMEQjT2udmQRP1fzIrmT49EGy9zNdTS5/JKjxqidsIQBO3i+9DBDQ==".to_owned(), ShaSize::FiveTwelve);
+        digest(D512.to_owned(), ShaSize::FiveTwelve);
     }
 
     #[test]
@@ -217,17 +219,17 @@ mod tests {
 
     #[test]
     fn parse_digest_256() {
-        parse_digest("SHA-256=bFp1K/TT36l9YQ8frlh/cVGuWuFEy1rCUNpGwQCSEow=");
+        parse_digest(format!("SHA-256={}", D256));
     }
 
     #[test]
     fn parse_digest_384() {
-        parse_digest("SHA-384=wOx5d657W3O8k2P7SW18Y/Kj/Rqm02pzgFVBInHOj7hbc0IrYGVXwzid3vTH82um");
+        parse_digest(format!("SHA-384={}", D384));
     }
 
     #[test]
     fn parse_digest_512() {
-        parse_digest("SHA-512=t13li71PxOlxHbZRB3ICZxjwBkYxhellKbMEQjT2udmQRP1fzIrmT49EGy9zNdTS5/JKjxqidsIQBO3i+9DBDQ==");
+        parse_digest(format!("SHA-512={}", D512));
     }
 
     #[test]
@@ -268,10 +270,13 @@ mod tests {
         let body = RequestBody::new(some_body);
         let digest = body.digest(sha_size);
 
-        assert_ne!(Digest::from_base64_and_size("not a hash".to_owned(), sha_size), digest);
+        assert_ne!(
+            Digest::from_base64_and_size("not a hash".to_owned(), sha_size),
+            digest
+        );
     }
 
-    fn parse_digest(digest: &str) {
+    fn parse_digest(digest: String) {
         let d = digest.parse::<Digest>();
 
         assert!(d.is_ok());
