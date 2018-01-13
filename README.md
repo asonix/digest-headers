@@ -14,7 +14,17 @@ Bodies_
    for each server kind are too different to fit nicely into a trait).
  - Adding Digest Headers to Reqwest Requests (with the `use_reqwest` feature).
 
-There are currently no examples, although there are tests for all added features.
+## Examples
+### Status
+ - Hyper Client example, very short and sweet
+ - Rocket Server Example. This one is more in-depth. It implements `rocket::request::FromRequest`
+   for two custom structs for the `Digest` and `ContentLength` headers, and implements `FromData`
+   for a simple wrapper around a `Vec<u8>`. See the example for the full implementation.
+
+### Notes
+ - The Hyper Client example is configured to send POST request to the Rocket Server example.
+ - When running the examples, remember to pass the `--all-features` flag to `cargo run`
+
 
 ## Contributing
 Please be aware that all code contributed to this project will be licensed under the GPL version 3.

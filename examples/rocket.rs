@@ -123,11 +123,15 @@ impl FromData for DigestVerifiedBody {
             Outcome::Forward(_) => return Outcome::Forward(data),
         };
 
+        println!("Provided Digest: {:?}", digest);
+
         let content_length = match req.guard::<ContentLengthHeader>() {
             Outcome::Success(clh) => clh.content_length(),
             Outcome::Failure(fail) => return Outcome::Failure(fail),
             Outcome::Forward(_) => return Outcome::Forward(data),
         };
+
+        println!("Content Length: {}", content_length);
 
         // Ensure request is less than 2 MB. This is still likely way too large
         if content_length > 1024 * 1024 * 2 {
