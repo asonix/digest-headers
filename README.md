@@ -2,15 +2,126 @@
 _A library to aid in the creation and verification of Digest Headers, Sha Digests of HTTP Request
 Bodies_
 
-## Current Status
-### Supported
+## Getting started
+### Building requests with Hyper
+```rust
+use digest_headers::Digest;
+use digest_headers::use_hyper::DigestHeader;
+
+let mut req = Request::new(Method::Post, uri);
+
+req.headers_mut().set(ContentType::json());
+req.headers_mut().set(ContentLength(json.len() as u64));
+req.headers_mut().set(DigestHeader(Digest::new(
+    json.as_bytes(),
+    ShaSize::TwoFiftySix,
+)));
+req.set_body(json);
+```
+### Handling requests with Hyper
+```rust
+use digest_headers::Digest;
+use digest_headers::use_hyper::DigestHeader;
+
+let digest_header = req.headers_mut().remove::<DigestHeader>().unwrap().0;
+
+req.body().concat2().and_then(|body| {
+    assert!(digest_header.verify(&body).is_ok());
+
+    Ok(())
+})
+```
+### Handling requests with Hyper
+```rust
+use digest_headers::use_hyper::DigestHeader;
+use futures::{Future, IntoFuture, Stream};
+use hyper::server::{Http, Request, Response, Service};
+
+struct Responder;
+
+impl Service for Responder {
+    type Request = Request;
+    type Response = Response;
+    type Error = hyper::Error;
+
+    type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
+
+    fn call(&self, mut req: Self::Request) -> Self::Future {
+        let digest = req
+            .headers_mut()
+            .remove::<DigestHeader>()
+            .ok_or(hyper::Error::Header);
+
+        let fut = req
+            .body()
+            .concat2()
+            .join(digest)
+            .and_then(|(body, digest)| {
+                if digest.0.verify(&body).is_ok() {
+                    println!("Verified!");
+                    Ok(Response::new().with_body(body))
+                } else {
+                    println!("Bad Request!");
+                    Err(hyper::Error::Header)
+                }
+            });
+
+        Box::new(fut)
+    }
+}
+```
+### Handling requests with Rocket
+```rust
+use digest_headers::use_rocket::DigestHeader;
+use rocket::data::{self, FromData};
+
+struct DigestVerifiedBody<T>(pub T);
+
+impl FromData for DigestVerifiedBody<Vec<u8>> {
+    type Error = ();
+
+    fn from_data(req: &Request, data: Data) -> data::Outcome<Self, Self::Error> {
+        let digest = match req.guard::<DigestHeader>() {
+            Outcome::Success(dh) => dh.0,
+            Outcome::Failure((status, _)) => return Outcome::Failure((status, ())),
+            Outcome::Forward(_) => return Outcome::Forward(data),
+        };
+
+        let mut body = Vec::new();
+
+        // This is a really obvious Denial-of-service attack.
+        // Please see the rocket example for a better way to do this.
+        // https://github.com/asonix/digest-headers/blob/master/examples/rocket.rs
+        if let Err(_) = data.open().read_to_end(&mut body) {
+            return Outcome::Failure((Status::InternalServerError, ()));
+        }
+
+        if digest.verify(&body).is_err() {
+            return Outcome::Failure((Status::BadRequest, ()));
+        }
+
+        Outcome::Success(DigestVerifiedBody(body))
+    }
+}
+
+#[post("/", data = "<data>")]
+fn index(data: DigestVerifiedBody<Vec<u8>>) -> String {
+    if let Ok(data) = std::str::from_utf8(&data.0) {
+        println!("Received {}", data);
+        format!("Verified!: {}", data)
+    } else {
+        format!("Failed to verify data")
+    }
+}
+```
+
+## What this library supports
  - Creation of Digest Header strings
  - Verification of Digest Header strings
  - Adding Digest Headers to Hyper Requests (with the `use_hyper` feature).
  - Digest and Content Length Header request guards for Rocket (with the `use_rocket` feature).
 
 ## Examples
-### Status
  - Hyper Client example, very short and sweet
  - Rocket Server Example. This one is more in-depth. It implements `rocket::request::FromRequest`
    for two custom structs for the `Digest` and `ContentLength` headers, and implements `FromData`

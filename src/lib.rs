@@ -174,6 +174,27 @@ impl Digest {
     pub fn as_string(&self) -> String {
         format!("{}={}", self.size, self.digest)
     }
+
+    /// Verify a given message body with the digest.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use digest_headers::{Digest, ShaSize};
+    /// let body = b"Some message body";
+    /// let digest = Digest::new(body, ShaSize::TwoFiftySix);
+    ///
+    /// assert!(digest.verify(body).is_ok());
+    /// ```
+    pub fn verify(&self, body: &[u8]) -> Result<(), Error> {
+        let digest = Digest::new(body, self.size);
+
+        if *self == digest {
+            Ok(())
+        } else {
+            Err(Error::InvalidDigest)
+        }
+    }
 }
 
 impl FromStr for Digest {
@@ -194,17 +215,6 @@ impl FromStr for Digest {
 impl fmt::Display for Digest {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.as_string())
-    }
-}
-
-pub fn verify_digest(digest: &str, body: &[u8]) -> Result<(), Error> {
-    let provided_digest: Digest = digest.parse()?;
-    let digest = RequestBody::new(body).digest(provided_digest.size);
-
-    if provided_digest == digest {
-        Ok(())
-    } else {
-        Err(Error::InvalidDigest)
     }
 }
 

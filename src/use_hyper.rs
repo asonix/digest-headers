@@ -82,9 +82,10 @@ impl From<HyperError> for Error {
 /// # fn run() -> Result<(), Error> {
 /// let uri = "http://example.com".parse().unwrap();
 /// let json = r#"{"Library":"Hyper"}"#;
+/// let digest = Digest::new(json.as_bytes(), ShaSize::TwoFiftySix);
 ///
 /// let mut req: Request = Request::new(Method::Post, uri);
-/// req.headers_mut().set(DigestHeader(Digest::new(json.as_bytes(), ShaSize::TwoFiftySix)));
+/// req.headers_mut().set(DigestHeader(digest));
 /// req.set_body(json);
 /// # Ok(())
 /// # }
@@ -114,9 +115,8 @@ impl From<HyperError> for Error {
 ///     req.body()
 ///         .concat2()
 ///         .and_then(|body| {
-///             let digest = Digest::new(&body, digest_header.sha_size());
+///             assert!(digest_header.verify(&body).is_ok());
 ///
-///             assert_eq!(digest_header, digest);
 ///             Ok(())
 ///         })
 ///         .wait()
@@ -126,9 +126,10 @@ impl From<HyperError> for Error {
 /// # fn main() {
 /// #     let uri = "http://example.com".parse().unwrap();
 /// #     let json = r#"{"Library":"Hyper"}"#;
+/// #     let digest = Digest::new(json.as_bytes(), ShaSize::TwoFiftySix);
 /// #
 /// #     let mut req: Request = Request::new(Method::Post, uri);
-/// #     req.headers_mut().set(DigestHeader(Digest::new(json.as_bytes(), ShaSize::TwoFiftySix)));
+/// #     req.headers_mut().set(DigestHeader(digest));
 /// #     req.set_body(json);
 /// #     handle_request(req);
 /// # }
@@ -230,7 +231,7 @@ mod tests {
     use tokio_core::reactor::Core;
 
     use super::DigestHeader;
-    use {Digest, ShaSize};
+    use ShaSize;
     use prelude::*;
 
     #[test]
@@ -276,9 +277,8 @@ mod tests {
 
         // Create a Future that will verify the digest upon reception
         let fut = req.body().concat2().and_then(|body| {
-            let digest = Digest::new(&body, digest_header.sha_size());
+            assert!(digest_header.verify(&body).is_ok());
 
-            assert_eq!(digest_header, digest);
             Ok(())
         });
 
