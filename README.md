@@ -20,19 +20,6 @@ req.set_body(json);
 ```
 ### Handling requests with Hyper
 ```rust
-use digest_headers::Digest;
-use digest_headers::use_hyper::DigestHeader;
-
-let digest_header = req.headers_mut().remove::<DigestHeader>().unwrap().0;
-
-req.body().concat2().and_then(|body| {
-    assert!(digest_header.verify(&body).is_ok());
-
-    Ok(())
-})
-```
-### Handling requests with Hyper
-```rust
 use digest_headers::use_hyper::DigestHeader;
 use futures::{Future, IntoFuture, Stream};
 use hyper::server::{Http, Request, Response, Service};
