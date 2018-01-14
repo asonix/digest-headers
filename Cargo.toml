@@ -1,7 +1,7 @@
 [package]
 name = "digest-headers"
 description = "A simple library to hash a request's body in the headers"
-version = "0.1.0"
+version = "0.1.1"
 license = "GPL-3.0"
 authors = ["Riley Trautman <rileyt@spiceworks.com>"]
 repository = "https://github.com/asonix/digest-headers"
@@ -9,7 +9,7 @@ readme = "README.md"
 keywords = ["web", "http", "header"]
 
 [features]
-default = []
+default = ["use_hyper", "use_rocket"]
 use_hyper = ["hyper", "futures", "tokio-core"]
 use_rocket = ["rocket", "rocket_codegen"]
 

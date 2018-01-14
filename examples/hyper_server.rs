@@ -14,9 +14,9 @@
  * along with Digest Header  If not, see <http://www.gnu.org/licenses/>.
  */
 
-extern crate hyper;
-extern crate futures;
 extern crate digest_headers;
+extern crate futures;
+extern crate hyper;
 
 use digest_headers::use_hyper::DigestHeader;
 use futures::{Future, Stream};
@@ -32,13 +32,11 @@ impl Service for Responder {
     type Future = Box<Future<Item = Self::Response, Error = Self::Error>>;
 
     fn call(&self, mut req: Self::Request) -> Self::Future {
-        let digest = req
-            .headers_mut()
+        let digest = req.headers_mut()
             .remove::<DigestHeader>()
             .ok_or(hyper::Error::Header);
 
-        let fut = req
-            .body()
+        let fut = req.body()
             .concat2()
             .join(digest)
             .and_then(|(body, digest)| {
@@ -57,8 +55,6 @@ impl Service for Responder {
 
 fn main() {
     let addr = "127.0.0.1:8000".parse().unwrap();
-    let server = Http::new()
-        .bind(&addr, || Ok(Responder))
-        .unwrap();
+    let server = Http::new().bind(&addr, || Ok(Responder)).unwrap();
     server.run().unwrap();
 }

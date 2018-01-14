@@ -52,7 +52,7 @@ impl Error {
     /// A function that can convert this error type into a Rocket Failure tuple.
     ///
     /// For both cases, the associated status is BadRequest.
-    pub fn as_rocket_failure(self) -> (Status, Self) {
+    pub fn into_rocket_failure(self) -> (Status, Self) {
         match self {
             Error::Digest(digest) => (Status::BadRequest, Error::Digest(digest)),
             Error::Header(which) => (Status::BadRequest, Error::Header(which)),
@@ -131,14 +131,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for DigestHeader {
             .headers()
             .get_one("Digest")
             .ok_or(Error::Header("Digest"))
-            .and_then(|raw_header| {
-                raw_header.parse::<Digest>().map_err(Error::from)
-            })
+            .and_then(|raw_header| raw_header.parse::<Digest>().map_err(Error::from))
             .map(DigestHeader);
 
         match res {
             Ok(success) => Outcome::Success(success),
-            Err(error) => Outcome::Failure(error.as_rocket_failure()),
+            Err(error) => Outcome::Failure(error.into_rocket_failure()),
         }
     }
 }
@@ -167,19 +165,23 @@ pub struct ContentLengthHeader(pub usize);
 impl<'a, 'r> FromRequest<'a, 'r> for ContentLengthHeader {
     type Error = Error;
 
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<ContentLengthHeader, Self::Error> {
+    fn from_request(
+        request: &'a Request<'r>,
+    ) -> request::Outcome<ContentLengthHeader, Self::Error> {
         let res = request
             .headers()
             .get_one("Content-Length")
             .ok_or(Error::Header("Content-Length"))
             .and_then(|raw_header| {
-                raw_header.parse::<usize>().map_err(|_| Error::Header("Content-Length"))
+                raw_header
+                    .parse::<usize>()
+                    .map_err(|_| Error::Header("Content-Length"))
             })
             .map(ContentLengthHeader);
 
         match res {
             Ok(success) => Outcome::Success(success),
-            Err(error) => Outcome::Failure(error.as_rocket_failure()),
+            Err(error) => Outcome::Failure(error.into_rocket_failure()),
         }
     }
 }

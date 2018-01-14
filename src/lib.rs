@@ -22,6 +22,56 @@
 //! [http signatures](https://github.com/asonix/http-signatures). This way, the Headers are signed
 //! with a key, validating identity and authenticity, and the Digest header validates the body of
 //! the request.
+//!
+//! # Basic use without an HTTP library
+//!
+//! ```rust
+//! use digest_headers::{Digest, ShaSize};
+//!
+//! let message = b"Some message";
+//!
+//! let digest = Digest::new(message, ShaSize::TwoFiftySix);
+//!
+//! assert!(digest.verify(message).is_ok());
+//! ```
+//!
+//! # Getting a Digest from a 'raw' digest string
+//!
+//! ```rust
+//! # fn run() -> Result<(), digest_headers::Error> {
+//! use digest_headers::Digest;
+//!
+//! let raw_digest = "SHA-256=2EL3dJGSq4d5YyGi76VZ5ZHzq5km0aZ0k4L8g1c4Llk=";
+//!
+//! let digest = raw_digest.parse::<Digest>()?;
+//!
+//! assert!(digest.verify(br#"{"Library":"Hyper"}"#).is_ok());
+//! #     Ok(())
+//! # }
+//! ```
+//!
+//! # Adding a Digest to a Hyper request
+//! With the `as_string` method, a Digest can easily be added to an HTTP Request. This example
+//! shows adding a `Digest` to a Hyper `Request` without using the included `DigestHeader` from the
+//! `use_hyper` feature.
+//!
+//! ```rust
+//! # extern crate digest_headers;
+//! # extern crate hyper;
+//! use digest_headers::{Digest, ShaSize};
+//! use hyper::{Method, Request};
+//!
+//! # fn main() {
+//! let uri = "http://example.com".parse().unwrap();
+//!
+//! let body = "Some body";
+//! let digest = Digest::new(body.as_bytes(), ShaSize::TwoFiftySix);
+//!
+//! let mut req: Request = Request::new(Method::Post, uri);
+//! req.headers_mut().set_raw("Digest", digest.as_string());
+//! req.set_body(body);
+//! # }
+//! ```
 
 extern crate base64;
 #[cfg(feature = "use_hyper")]
@@ -201,7 +251,7 @@ impl FromStr for Digest {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let eq_index = s.find("=").ok_or(Error::ParseDigest)?;
+        let eq_index = s.find('=').ok_or(Error::ParseDigest)?;
         let tup = s.split_at(eq_index);
         let val = tup.1.get(1..).ok_or(Error::ParseDigest)?;
 

@@ -24,7 +24,7 @@ use std::error::Error as StdError;
 use std::fmt;
 use std::io::Read;
 
-use digest_headers::use_rocket::{Error as DigestError, ContentLengthHeader, DigestHeader};
+use digest_headers::use_rocket::{ContentLengthHeader, DigestHeader, Error as DigestError};
 use rocket::data::{self, Data, FromData};
 use rocket::request::Request;
 use rocket::Outcome;
@@ -120,7 +120,7 @@ impl FromData for DigestVerifiedBody<Vec<u8>> {
         let mut body = vec![0u8; content_length];
 
         // Only read as much data as we expect to avoid DOS
-        if let Err(_) = data.open().read_exact(&mut body) {
+        if data.open().read_exact(&mut body).is_err() {
             return Outcome::Failure((Status::InternalServerError, Error::ReadFailed));
         }
 
@@ -134,11 +134,12 @@ impl FromData for DigestVerifiedBody<Vec<u8>> {
 
 #[post("/", data = "<data>")]
 fn index(data: DigestVerifiedBody<Vec<u8>>) -> String {
-    if let Ok(data) = std::str::from_utf8(&data.0) {
+    let inner = data.0;
+    if let Ok(data) = std::str::from_utf8(&inner) {
         println!("Received {}", data);
         format!("Verified!: {}", data)
     } else {
-        format!("Failed to verify data")
+        "Failed to verify data".to_owned()
     }
 }
 

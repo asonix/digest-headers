@@ -3,6 +3,15 @@ _A library to aid in the creation and verification of Digest Headers, Sha Digest
 Bodies_
 
 ## Getting started
+Add the following to your `Cargo.toml`
+```toml
+[dependencies.digest-headers]
+default-features = false
+```
+
+If you want the hyper types, add `features = ["use_hyper"]` to the `digest-headers` section. If you
+want the rocket types, add `features = ["use_rocket"]`.
+
 ### Building requests with Hyper
 ```rust
 use digest_headers::Digest;
@@ -115,8 +124,8 @@ fn index(data: DigestVerifiedBody<Vec<u8>>) -> String {
    for a simple wrapper around a `Vec<u8>`. See the example for the full implementation.
 
 ### Notes
- - The Hyper Client example is configured to send POST request to the Rocket Server example.
- - When running the examples, remember to pass the `--all-features` flag to `cargo run`
+ - The Rocket and Hyper servers run on the same port, so you can't run them simultaneously
+ - The Hyper Client example is configured to send POST requests to the Rocket and Hyper Server examples.
 
 ## Contributing
 Please be aware that all code contributed to this project will be licensed under the GPL version 3.
