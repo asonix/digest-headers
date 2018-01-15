@@ -2,6 +2,8 @@
 _A library to aid in the creation and verification of Digest Headers, Sha Digests of HTTP Request
 Bodies_
 
+[crates.io](https://crates.io/crates/digest-headers) [documentation](https://asonix.github.io/digest-headers/digest_headers/index.html)
+
 ## Getting started
 Add the following to your `Cargo.toml`
 ```toml
