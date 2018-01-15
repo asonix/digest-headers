@@ -8,6 +8,7 @@ Bodies_
 Add the following to your `Cargo.toml`
 ```toml
 [dependencies.digest-headers]
+version = "0.1"
 default-features = false
 ```
 
